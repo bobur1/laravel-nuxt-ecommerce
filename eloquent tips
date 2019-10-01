@@ -1,0 +1,139 @@
+
+
+Model vars:
+
+protected $table = "SomeName"; - if your table name is not plural form of model name. Ex: model name "Cat" table name "cat"
+protected $primaryKey = "article_id"; - if primary key is not id (by default in laravel PK is 'id')
+protected $incrementing = false; - if PK is not incrementing
+protected $perPage = 5; - if u want to call in Controller paginated info with ...->pagination() and do not want take 15 (by default 15 in laravel)
+protected $timestamps = false; - if u do not have created_at and updated_at in ur table (by default they must be in ur table)
+protected $CREATED_AT = 'created' - if ur want to rename fields
+protected $UPDATED_AT = 'updated' - if ur want to rename fields
+protected $dateFormat = 'm/d/Y H:i:s' - to change default 'Y-m-d H:i:s'
+
+
+Controller tips:
+
+public function store(Request $request){
+
+$article = Article::firstOrCreate(['title'=>$request->title,...], ['article_text'=>$request->text, ...])
+// firs parameter of firstOrCreate is array of var to compare with existing data(1 or more var), the second one is additional var to be written in table (better enter all except compared var)
+$article = Article::firstOrNew(['title'=>$request->title,...], ['article_text'=>$request->text, ...])
+$article->field = $value
+$article->save();
+// same as firstOrCreate, but it will not instant save new. It will return obj and u can add some more fields to save
+
+Article::updateOrCreate(['title'=>$request->title,'user_id' = auth()->id()], ['article_text'=>$request->text, ...])
+// create or update by this 3 fiel
+}
+
+
+/* Write notification in Log file after storing */
+
+public function store(Request $request){
+ Article::create($request->all());
+
+ return redirect()->route('article.index');
+}
+
+// create observer by "php artisan make:observer ArticleObserver --model=Article  "
+// try to specify model name
+
+//now enter in ArticleObserver class and write
+public function created(Article $article)
+    {
+        //note: info only write data in log
+        info("Article is saved");
+    }
+
+//register our observer in AppServiceProvider
+
+public function boot()
+    {
+        Article::observe(ArticleObserver::class);
+    }
+
+
+
+
+ /*Accessors and Mutators */
+
+// if u have name and surname in 2 diff fields in table
+// but u want full_name to show
+// u need accessor in model
+//let see User model
+    public function getFullNameAttribute(){
+        return $this->name.' '.$this->surname;
+    }
+// NOTE: it is necessary to have in camel case ur var in 'get...Attribute()' function name
+
+
+// name and surname is starts with upper case
+// we need modify before saving
+// we need mutator
+
+    public function setNameAttribute($value){
+        $this->attributes['name'] = ucfirst($value);
+    }
+// NOTE: var value is now our name and it will be change by php function ucfirst (make first letter in upper case)
+
+
+/*Query Scope*/
+// create a function in a model Article
+    public function scopeNewest($query){
+        return $query->where('created_at', '>', now()->subDays(30));
+    }
+
+  //NOTE: func name MUST start with 'scope' and then the name
+  // this name will be used in controller
+
+  //ArticleController
+
+      public function index()
+      {
+        $articles = Article::newest()->get();
+      }
+// NOTE: use it with low case name
+
+// NOTE: we have GLOBAL SCOPE see documentation
+
+/*Filtering without if statement, only with WHEN*/
+
+/*Math in object (already called from db)*/
+
+$article = Article::all();
+echo "Article num : ". $article->count();
+echo "some summation". $article->sum('some_field_from_table');
+
+/*polymorphic relation*/
+
+//when u have table like 'photos' and 'posts' and posts can have many photos
+//also there are 'users' with 'photos' and they also can have many photos
+
+//you need to create only 2 additional attributes
+//imageable_id and imageable_type where 'able' is reserved
+
+//need to write in Photo model
+protected $fillable = ['imageable_id', 'imageable_type', 'filename'];
+//where filename is not mandatory
+    public function imageable(){
+        return $this->morphTo();
+    }
+
+// need to write in Post mode
+    public function photos(){
+        $this ->morphMany('App\Photo','imageable');
+    }
+// just call function in controller to get posts with photos
+$posts = Post::with('photos')->get();
+
+// to store function in controller
+ $post = Post::create($request->only(['title']));
+        $photo = 'something...';
+        //maybe foreach here start for photos
+        Photo::create([
+            'imageable_id' => $post->id,
+            'imageable_type' => 'App\Post',
+            'filename' => $photo
+        ]);
+        //end of foreach here
