@@ -9,8 +9,16 @@ use App\Http\Controllers\Controller;
 
 class ProductController extends Controller
 {
-    public function index(){
-       $products = Product::paginate(10);
-       return ProductIndexResource::collection($products);
+    public function index()
+    {
+        $products = Product::paginate(10);
+        return ProductIndexResource::collection($products);
+    }
+
+    public function show(Product $product)
+    {
+        return new ProductIndexResource(
+            $product
+        );
     }
 }
